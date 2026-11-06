@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push -u origin:*)",
+      "Bash(git push origin:*)",
+      "Bash(git fetch:*)",
+      "Bash(git pull:*)",
+      "Bash(git checkout:*)",
+      "Bash(git branch:*)",
+      "Bash(git merge:*)",
+      "Bash(git rm:*)",
+      "Bash(pnpm:*)",
+      "Bash(npx prisma:*)",
+      "Bash(npx dotenv:*)",
+      "Bash(npx next:*)",
+      "Bash(node:*)",
+      "Bash(curl -s localhost:*)",
+      "Bash(curl -s http://localhost:*)",
+      "mcp__github__create_pull_request",
+      "mcp__github__update_pull_request",
+      "mcp__github__issue_write",
+      "mcp__github__pull_request_read",
+      "mcp__remote-devices__device_bash",
+      "mcp__remote-devices__device_list_dir",
+      "mcp__remote-devices__device_stage_files",
+      "mcp__remote-devices__device_commit_files"
+    ]
+  }
+}
