@@ -28,7 +28,7 @@ pnpm install
 cp .env.example .env        # no Windows: copy .env.example .env
 pnpm db:up                  # sobe o Postgres no Docker
 pnpm db:migrate             # cria as tabelas
-pnpm db:seed                # cria uma lanchonete de exemplo
+pnpm db:seed                # cria duas lojas de exemplo
 pnpm dev                    # http://localhost:3000
 ```
 

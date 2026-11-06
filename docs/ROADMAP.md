@@ -5,7 +5,7 @@
 - Login com Google (Auth.js)
 - Modelo inicial: usuários, estabelecimentos, horários, categorias, produtos, pedidos
 
-## Fase 2 — Cardápio público e pedidos (MVP)
+## Fase 2 — Cardápio público e pedidos (MVP) ✅
 - Busca de estabelecimentos por nome, tipo de comida e "aberto agora"
 - Página do cardápio com fotos, carrinho e checkout (entrega, retirada ou no local)
 - Pagamento na entrega (dinheiro, Pix, cartão); pedido também enviado por WhatsApp como reforço
