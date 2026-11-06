@@ -1,10 +1,7 @@
 import type { NextConfig } from "next";
-import { config } from "dotenv";
-import path from "node:path";
 
 // As variáveis ficam num único .env na raiz do monorepo.
-config({ path: path.resolve(__dirname, "../../.env"), quiet: true });
-
+// Os scripts dev/build/start carregam esse arquivo com dotenv-cli (veja package.json).
 const nextConfig: NextConfig = {
   transpilePackages: ["@cardapio/db"],
   serverExternalPackages: ["@prisma/client"],
