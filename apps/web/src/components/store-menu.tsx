@@ -5,6 +5,7 @@ import { isOpenNow, todayLabel } from "@/lib/hours";
 import { AddToCart } from "@/components/add-to-cart";
 import { CartBar } from "@/components/cart-bar";
 import { OpenBadge } from "@/components/open-badge";
+import { getStockAvailability } from "@/lib/server/stock";
 
 export type TableContext = { id: string; label: string };
 
@@ -22,6 +23,9 @@ export async function StoreMenu({ slug, table }: { slug: string; table?: TableCo
   });
 
   if (!store || !store.isActive) notFound();
+  // Produto sem ingrediente suficiente aparece como "em falta" automaticamente.
+  const stock = await getStockAvailability(store.id);
+  const inStock = (p: { id: string; isAvailable: boolean }) => p.isAvailable && (stock.get(p.id)?.maxUnits ?? 1) > 0;
   const cartKey = table ? `${store.slug}--mesa-${table.id}` : store.slug;
   const checkoutHref = table ? `/lojas/${store.slug}/mesa/${table.id}/pedido` : `/lojas/${store.slug}/checkout`;
   const open = isOpenNow(store.openingHours);
@@ -67,7 +71,7 @@ export async function StoreMenu({ slug, table }: { slug: string; table?: TableCo
             {category.products.map((product) => (
               <li
                 key={product.id}
-                className={`flex items-start justify-between gap-4 p-4 ${product.isAvailable ? "" : "opacity-50"}`}
+                className={`flex items-start justify-between gap-4 p-4 ${inStock(product) ? "" : "opacity-50"}`}
               >
                 {product.imageUrl && (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -77,12 +81,12 @@ export async function StoreMenu({ slug, table }: { slug: string; table?: TableCo
                   <p className="font-medium">{product.name}</p>
                   {product.description && <p className="text-sm text-stone-600">{product.description}</p>}
                   <p className="mt-1 font-semibold">{formatPrice(product.priceCents)}</p>
-                  {!product.isAvailable && <p className="text-xs font-medium text-red-600">Em falta</p>}
+                  {!inStock(product) && <p className="text-xs font-medium text-red-600">Em falta</p>}
                 </div>
                 <AddToCart
                   storeSlug={cartKey}
                   product={{ id: product.id, name: product.name, priceCents: product.priceCents }}
-                  disabled={!product.isAvailable || !open}
+                  disabled={!inStock(product) || !open}
                 />
               </li>
             ))}

@@ -38,6 +38,8 @@ export default async function OrdersPanel({ params }: { params: Promise<{ storeI
       take: 30,
     }),
   ]);
+  const ingredients = await prisma.ingredient.findMany({ where: { storeId }, select: { name: true, stockQty: true, minQty: true } });
+  const low = ingredients.filter((i) => i.stockQty <= i.minQty);
   const pending = active.filter((o) => o.status === "PENDING");
   const inProgress = active.filter((o) => o.status !== "PENDING");
 
@@ -49,6 +51,15 @@ export default async function OrdersPanel({ params }: { params: Promise<{ storeI
         <p className="rounded-md bg-amber-50 px-4 py-3 text-sm text-amber-800">
           Sua loja ainda é um rascunho. Complete o cardápio e publique em <strong>Loja e horários</strong> para começar a
           receber pedidos.
+        </p>
+      )}
+
+      {low.length > 0 && (
+        <p className="rounded-md bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Estoque baixo: {low.map((i) => i.name).join(", ")}.{" "}
+          <a href={`/painel/${storeId}/estoque`} className="font-medium underline">
+            Ver estoque
+          </a>
         </p>
       )}
 

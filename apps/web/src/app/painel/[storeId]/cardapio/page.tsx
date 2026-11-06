@@ -3,6 +3,10 @@ import { requireStoreOwner } from "@/lib/store-auth";
 import { centsToInput, formatPrice } from "@/lib/format";
 import { buttonClass, dangerButtonClass, inputClass, secondaryButtonClass } from "@/components/ui";
 import { ProductForm } from "./product-form";
+import { RecipeItemForm } from "../estoque/forms";
+import { removeRecipeItem } from "../estoque/actions";
+import { getStockAvailability } from "@/lib/server/stock";
+import { UNIT_SHORT } from "@/lib/units";
 import {
   addCategory,
   deleteCategory,
@@ -21,11 +25,20 @@ export default async function MenuPanel({ params }: { params: Promise<{ storeId:
   const { storeId } = await params;
   await requireStoreOwner(storeId);
 
-  const categories = await prisma.menuCategory.findMany({
-    where: { storeId },
-    orderBy: { position: "asc" },
-    include: { products: { orderBy: { position: "asc" } } },
-  });
+  const [categories, ingredients, stock] = await Promise.all([
+    prisma.menuCategory.findMany({
+      where: { storeId },
+      orderBy: { position: "asc" },
+      include: {
+        products: {
+          orderBy: { position: "asc" },
+          include: { recipe: { include: { ingredient: { select: { name: true, unit: true } } } } },
+        },
+      },
+    }),
+    prisma.ingredient.findMany({ where: { storeId }, orderBy: { name: "asc" }, select: { id: true, name: true, unit: true } }),
+    getStockAvailability(storeId),
+  ]);
   const categoryOptions = categories.map((c) => ({ id: c.id, name: c.name }));
 
   return (
@@ -85,6 +98,11 @@ export default async function MenuPanel({ params }: { params: Promise<{ storeId:
                         {!p.isAvailable && (
                           <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">Em falta</span>
                         )}
+                        {p.isAvailable && !!stock.get(p.id)?.missing.length && (
+                          <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">
+                            Em falta: sem {stock.get(p.id)!.missing.join(", ")}
+                          </span>
+                        )}
                       </p>
                       {p.description && <p className="text-sm text-stone-600">{p.description}</p>}
                       <p className="text-sm font-semibold">{formatPrice(p.priceCents)}</p>
@@ -106,8 +124,30 @@ export default async function MenuPanel({ params }: { params: Promise<{ storeId:
                     </div>
                   </div>
                   <details className="mt-2">
-                    <summary className="cursor-pointer text-sm text-brand-700">Editar</summary>
+                    <summary className="cursor-pointer text-sm text-brand-700">
+                      Editar{p.recipe.length > 0 ? ` · ficha técnica (${p.recipe.length})` : ""}
+                    </summary>
                     <div className="mt-3 space-y-3">
+                      <div className="space-y-2 rounded-md bg-stone-50 p-3">
+                        <p className="text-sm font-medium">Ficha técnica (por unidade vendida)</p>
+                        {p.recipe.length > 0 && (
+                          <ul className="text-sm">
+                            {p.recipe.map((r) => (
+                              <li key={r.id} className="flex items-center gap-3">
+                                <span>
+                                  {r.quantity} {UNIT_SHORT[r.ingredient.unit]} de {r.ingredient.name}
+                                </span>
+                                <form action={removeRecipeItem.bind(null, storeId, r.id)}>
+                                  <button className="text-xs text-red-700 hover:underline" aria-label={`Remover ${r.ingredient.name} da ficha`}>
+                                    remover
+                                  </button>
+                                </form>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        <RecipeItemForm storeId={storeId} productId={p.id} ingredients={ingredients} />
+                      </div>
                       <ProductForm
                         storeId={storeId}
                         categories={categoryOptions}

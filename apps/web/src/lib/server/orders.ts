@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma, Prisma } from "@cardapio/db";
+import { checkStock, deductForOrder } from "./stock";
 
 export type CartLine = { productId: string; quantity: number; notes?: string };
 
@@ -41,6 +42,9 @@ export async function buildOrderItems(storeId: string, lines: CartLine[]): Promi
       notes: i.notes?.trim().slice(0, 200) || null,
     };
   });
+  const stockError = await checkStock(items);
+  if (stockError) return { ok: false, error: stockError };
+
   return { ok: true, items, subtotalCents: items.reduce((s, i) => s + i.unitPriceCents * i.quantity, 0) };
 }
 
@@ -59,8 +63,12 @@ export async function retryOnConflict<T>(fn: () => Promise<T>, attempts = 5): Pr
   }
 }
 
-/** Cria um pedido com o próximo número da loja. */
-export function createOrder(data: Omit<Prisma.OrderUncheckedCreateInput, "number">) {
+type NewOrder = Omit<Prisma.OrderUncheckedCreateInput, "number" | "items"> & {
+  items: { create: { productId: string | null; quantity: number; productName: string; unitPriceCents: number; notes: string | null }[] };
+};
+
+/** Cria um pedido com o próximo número da loja e baixa o estoque dos ingredientes. */
+export function createOrder(data: NewOrder) {
   return retryOnConflict(() =>
     prisma.$transaction(async (tx) => {
       const last = await tx.order.findFirst({
@@ -68,7 +76,9 @@ export function createOrder(data: Omit<Prisma.OrderUncheckedCreateInput, "number
         orderBy: { number: "desc" },
         select: { number: true },
       });
-      return tx.order.create({ data: { ...data, number: (last?.number ?? 0) + 1 }, select: { id: true } });
+      const order = await tx.order.create({ data: { ...data, number: (last?.number ?? 0) + 1 }, select: { id: true } });
+      await deductForOrder(tx, data.storeId, order.id, data.items.create);
+      return order;
     }),
   );
 }

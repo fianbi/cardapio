@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { isOpenNow } from "@/lib/hours";
 import { buildOrderItems, createOrder, type CartLine } from "@/lib/server/orders";
 import { openTab } from "@/lib/server/tabs";
+import { OutOfStockError } from "@/lib/server/stock";
 
 export type TableOrderResult = { ok: true } | { ok: false; error: string };
 
@@ -46,6 +47,7 @@ export async function placeTableOrder(
     });
     return { ok: true };
   } catch (e) {
+    if (e instanceof OutOfStockError) return { ok: false, error: e.message };
     console.error("Erro ao criar pedido da mesa", e);
     return { ok: false, error: "Não foi possível enviar o pedido. Tente novamente." };
   }
