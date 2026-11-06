@@ -2,7 +2,69 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
+type SeedStore = {
+  slug: string;
+  name: string;
+  description: string;
+  cuisines: string[];
+  hours: { opensAt: string; closesAt: string };
+  deliveryFeeCents: number;
+  acceptsDineIn?: boolean;
+  menu: { category: string; products: { name: string; description?: string; priceCents: number; isAvailable?: boolean }[] }[];
+};
+
 // Dados de exemplo para desenvolvimento.
+const STORES: SeedStore[] = [
+  {
+    slug: "lanchonete-exemplo",
+    name: "Lanchonete Exemplo",
+    description: "Lanches artesanais, porções e bebidas.",
+    cuisines: ["lanches", "porções"],
+    hours: { opensAt: "18:00", closesAt: "02:00" }, // passa da meia-noite
+    deliveryFeeCents: 500,
+    menu: [
+      {
+        category: "Lanches",
+        products: [
+          { name: "X-Burger", description: "Pão, hambúrguer, queijo e salada.", priceCents: 2200 },
+          { name: "X-Bacon", description: "Pão, hambúrguer, queijo, bacon e salada.", priceCents: 2600 },
+          { name: "X-Tudo", description: "O completo da casa.", priceCents: 3200, isAvailable: false },
+        ],
+      },
+      {
+        category: "Bebidas",
+        products: [
+          { name: "Refrigerante lata", priceCents: 600 },
+          { name: "Suco natural 500ml", priceCents: 900 },
+        ],
+      },
+    ],
+  },
+  {
+    slug: "pastelaria-da-praca",
+    name: "Pastelaria da Praça",
+    description: "Pastéis fritos na hora e caldo de cana.",
+    cuisines: ["pastel", "lanches"],
+    hours: { opensAt: "08:00", closesAt: "22:00" },
+    deliveryFeeCents: 0,
+    acceptsDineIn: true,
+    menu: [
+      {
+        category: "Pastéis",
+        products: [
+          { name: "Pastel de carne", priceCents: 1000 },
+          { name: "Pastel de queijo", priceCents: 900 },
+          { name: "Pastel de frango com catupiry", priceCents: 1100 },
+        ],
+      },
+      {
+        category: "Bebidas",
+        products: [{ name: "Caldo de cana 500ml", priceCents: 800 }],
+      },
+    ],
+  },
+];
+
 async function main() {
   const owner = await prisma.user.upsert({
     where: { email: "dono@exemplo.com" },
@@ -10,48 +72,43 @@ async function main() {
     create: { email: "dono@exemplo.com", name: "Dono de Exemplo", role: "STORE_OWNER" },
   });
 
-  const store = await prisma.store.upsert({
-    where: { slug: "lanchonete-exemplo" },
-    update: {},
-    create: {
-      slug: "lanchonete-exemplo",
-      name: "Lanchonete Exemplo",
-      description: "Lanches artesanais, porções e bebidas.",
-      cuisines: ["lanches", "porções"],
-      city: "Minha Cidade",
-      state: "SP",
-      whatsapp: "5511999999999",
-      deliveryFeeCents: 500,
-      ownerId: owner.id,
-      openingHours: {
-        create: [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({
-          weekday,
-          opensAt: "18:00",
-          closesAt: "23:30",
-        })),
+  for (const s of STORES) {
+    const exists = await prisma.store.findUnique({ where: { slug: s.slug } });
+    if (exists) continue;
+
+    await prisma.store.create({
+      data: {
+        slug: s.slug,
+        name: s.name,
+        description: s.description,
+        cuisines: s.cuisines,
+        city: "Minha Cidade",
+        state: "SP",
+        whatsapp: "5511999999999",
+        deliveryFeeCents: s.deliveryFeeCents,
+        acceptsDineIn: s.acceptsDineIn ?? false,
+        ownerId: owner.id,
+        openingHours: {
+          create: [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({ weekday, ...s.hours })),
+        },
+        categories: {
+          create: s.menu.map((c, ci) => ({
+            name: c.category,
+            position: ci,
+          })),
+        },
       },
-    },
-  });
+    });
 
-  const existing = await prisma.menuCategory.count({ where: { storeId: store.id } });
-  if (existing > 0) return;
-
-  const lanches = await prisma.menuCategory.create({
-    data: { storeId: store.id, name: "Lanches", position: 0 },
-  });
-  const bebidas = await prisma.menuCategory.create({
-    data: { storeId: store.id, name: "Bebidas", position: 1 },
-  });
-
-  await prisma.product.createMany({
-    data: [
-      { storeId: store.id, categoryId: lanches.id, name: "X-Burger", description: "Pão, hambúrguer, queijo e salada.", priceCents: 2200, position: 0 },
-      { storeId: store.id, categoryId: lanches.id, name: "X-Bacon", description: "Pão, hambúrguer, queijo, bacon e salada.", priceCents: 2600, position: 1 },
-      { storeId: store.id, categoryId: lanches.id, name: "X-Tudo", description: "O completo da casa.", priceCents: 3200, position: 2, isAvailable: false },
-      { storeId: store.id, categoryId: bebidas.id, name: "Refrigerante lata", priceCents: 600, position: 0 },
-      { storeId: store.id, categoryId: bebidas.id, name: "Suco natural 500ml", priceCents: 900, position: 1 },
-    ],
-  });
+    const store = await prisma.store.findUniqueOrThrow({ where: { slug: s.slug }, include: { categories: true } });
+    for (const c of s.menu) {
+      const category = store.categories.find((x) => x.name === c.category)!;
+      await prisma.product.createMany({
+        data: c.products.map((p, pi) => ({ ...p, storeId: store.id, categoryId: category.id, position: pi })),
+      });
+    }
+    console.log(`Criada: ${s.name}`);
+  }
 }
 
 main()

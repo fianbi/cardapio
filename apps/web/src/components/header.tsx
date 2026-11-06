@@ -18,6 +18,9 @@ export async function Header() {
             }}
             className="flex items-center gap-3 text-sm"
           >
+            <Link href="/pedidos" className="font-medium text-brand-700 hover:underline">
+              Meus pedidos
+            </Link>
             <span className="hidden sm:inline">Olá, {session.user.name?.split(" ")[0]}</span>
             <button className="rounded-md border border-stone-300 px-3 py-1.5 hover:bg-stone-100">
               Sair
