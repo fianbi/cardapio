@@ -57,6 +57,7 @@ export default async function StoreSettings({
           acceptsDineIn: store.acceptsDineIn,
           deliveryFee: centsToInput(store.deliveryFeeCents),
           minOrder: centsToInput(store.minOrderCents),
+          serviceFeePercent: String(store.serviceFeePercent),
         }}
       />
     </div>
