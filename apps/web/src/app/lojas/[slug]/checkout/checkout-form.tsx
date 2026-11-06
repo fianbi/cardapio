@@ -143,7 +143,7 @@ export function CheckoutForm({ store, defaults }: Props) {
           <input name="name" required defaultValue={defaults.name} autoComplete="name" className={`${input} mt-1`} />
         </label>
         <label className="block text-sm">
-          Telefone / WhatsApp
+          Telefone
           <input
             name="phone"
             required

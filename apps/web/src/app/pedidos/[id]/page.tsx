@@ -21,24 +21,13 @@ export default async function OrderPage({
 
   const order = await prisma.order.findUnique({
     where: { id },
-    include: { items: true, store: { select: { name: true, slug: true, whatsapp: true, phone: true } } },
+    include: { items: true, store: { select: { name: true, slug: true } } },
   });
   if (!order || order.customerId !== session.user.id) notFound();
 
   const steps = statusSteps(order.type);
   const current = steps.indexOf(order.status);
   const finished = order.status === "COMPLETED" || order.status === "CANCELED";
-
-  const whatsappText = [
-    `Olá! Acabei de fazer o pedido #${order.number} pelo Cardápio.`,
-    ...order.items.map((i) => `${i.quantity}x ${i.productName}${i.notes ? ` (${i.notes})` : ""}`),
-    `Total: ${formatPrice(order.totalCents)} · ${PAYMENT_LABEL[order.paymentMethod]}`,
-    `${ORDER_TYPE_LABEL[order.type]}${order.deliveryAddress ? `: ${order.deliveryAddress}` : ""}`,
-    `Nome: ${order.customerName}`,
-  ].join("\n");
-  const whatsappUrl = order.store.whatsapp
-    ? `https://wa.me/${order.store.whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(whatsappText)}`
-    : null;
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -121,16 +110,6 @@ export default async function OrderPage({
         </div>
       </section>
 
-      {whatsappUrl && !finished && (
-        <a
-          href={whatsappUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="block rounded-md border border-green-700 px-4 py-2 text-center font-medium text-green-800 hover:bg-green-50"
-        >
-          Enviar o pedido também pelo WhatsApp da loja
-        </a>
-      )}
     </div>
   );
 }

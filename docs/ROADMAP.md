@@ -8,7 +8,7 @@
 ## Fase 2 — Cardápio público e pedidos (MVP) ✅
 - Busca de estabelecimentos por nome, tipo de comida e "aberto agora"
 - Página do cardápio com fotos, carrinho e checkout (entrega, retirada ou no local)
-- Pagamento na entrega (dinheiro, Pix, cartão); pedido também enviado por WhatsApp como reforço
+- Pagamento na entrega (dinheiro, Pix, cartão); todo o fluxo do pedido acontece dentro do aplicativo
 - Acompanhamento do pedido pelo cliente
 
 ## Fase 3 — Painel do lojista e publicação
