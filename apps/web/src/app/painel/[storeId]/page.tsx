@@ -38,8 +38,11 @@ export default async function OrdersPanel({ params }: { params: Promise<{ storeI
       take: 30,
     }),
   ]);
-  const ingredients = await prisma.ingredient.findMany({ where: { storeId }, select: { name: true, stockQty: true, minQty: true } });
-  const low = ingredients.filter((i) => i.stockQty <= i.minQty);
+  const missingIngredients = await prisma.ingredient.findMany({
+    where: { storeId, available: false },
+    select: { name: true },
+    orderBy: { name: "asc" },
+  });
   const pending = active.filter((o) => o.status === "PENDING");
   const inProgress = active.filter((o) => o.status !== "PENDING");
 
@@ -54,11 +57,11 @@ export default async function OrdersPanel({ params }: { params: Promise<{ storeI
         </p>
       )}
 
-      {low.length > 0 && (
+      {missingIngredients.length > 0 && (
         <p className="rounded-md bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          Estoque baixo: {low.map((i) => i.name).join(", ")}.{" "}
-          <a href={`/painel/${storeId}/estoque`} className="font-medium underline">
-            Ver estoque
+          Em falta: {missingIngredients.map((i) => i.name).join(", ")}.{" "}
+          <a href={`/painel/${storeId}/ingredientes`} className="font-medium underline">
+            Ver ingredientes
           </a>
         </p>
       )}

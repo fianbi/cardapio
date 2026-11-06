@@ -9,7 +9,7 @@ export function PanelNav({ storeId }: { storeId: string }) {
     { href: `/painel/${storeId}`, label: "Pedidos" },
     { href: `/painel/${storeId}/comandas`, label: "Comandas" },
     { href: `/painel/${storeId}/cardapio`, label: "Cardápio" },
-    { href: `/painel/${storeId}/estoque`, label: "Estoque" },
+    { href: `/painel/${storeId}/ingredientes`, label: "Ingredientes" },
     { href: `/painel/${storeId}/loja`, label: "Loja e horários" },
   ];
   return (
