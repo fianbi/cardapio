@@ -18,7 +18,7 @@
 - Deploy (Vercel + Postgres gerenciado) e domínio
 
 ## Fase 4 — Operação da lanchonete
-- Comandas e mesas
+- Comandas e mesas ✅ (QR code por mesa, pedido na mesa sem login, fechamento de conta)
 - Controle de estoque com ficha técnica (produto ↔ ingredientes); item fica "em falta" automaticamente
 - Promoções e cupons
 - Emissão de NFC-e sob demanda (via API de terceiros, ex.: Focus NFe, PlugNotas)

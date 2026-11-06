@@ -30,7 +30,7 @@ export default async function OrdersPanel({ params }: { params: Promise<{ storeI
     prisma.order.findMany({
       where: { storeId, status: { in: [...ACTIVE] } },
       orderBy: { createdAt: "asc" },
-      include: { items: true },
+      include: { items: true, tab: { select: { number: true, label: true, table: { select: { label: true } } } } },
     }),
     prisma.order.findMany({
       where: { storeId, status: { in: ["COMPLETED", "CANCELED"] }, updatedAt: { gte: since } },
@@ -71,7 +71,14 @@ export default async function OrdersPanel({ params }: { params: Promise<{ storeI
                     <div>
                       <p className="text-lg font-bold">#{o.number}</p>
                       <p className="text-sm text-stone-500">
-                        {time(o.createdAt)} · {ORDER_TYPE_LABEL[o.type]}
+                        {time(o.createdAt)} ·{" "}
+                        {o.tab ? (
+                          <strong className="text-stone-800">
+                            {o.tab.table?.label ?? o.tab.label ?? "Balcão"} (comanda #{o.tab.number})
+                          </strong>
+                        ) : (
+                          ORDER_TYPE_LABEL[o.type]
+                        )}
                       </p>
                     </div>
                     <span className="rounded-full bg-stone-100 px-2 py-0.5 text-xs font-medium">
@@ -88,12 +95,13 @@ export default async function OrdersPanel({ params }: { params: Promise<{ storeI
                   </ul>
                   <div className="space-y-0.5 text-sm text-stone-600">
                     <p>
-                      {o.customerName} · {o.customerPhone}
+                      {o.customerName}
+                      {o.customerPhone && ` · ${o.customerPhone}`}
                     </p>
                     {o.deliveryAddress && <p>📍 {o.deliveryAddress}</p>}
                     {o.notes && <p>Obs.: {o.notes}</p>}
                     <p className="font-semibold text-stone-900">
-                      {formatPrice(o.totalCents)} · {PAYMENT_LABEL[o.paymentMethod]}
+                      {formatPrice(o.totalCents)} · {o.paymentMethod ? PAYMENT_LABEL[o.paymentMethod] : "Na comanda"}
                       {o.changeForCents ? ` (troco para ${formatPrice(o.changeForCents)})` : ""}
                     </p>
                   </div>

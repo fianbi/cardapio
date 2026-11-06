@@ -22,6 +22,8 @@ export async function saveStore(storeId: string, _prev: FormState, form: FormDat
 
   const deliveryFeeCents = parsePriceToCents(form.get("deliveryFee")) ?? 0;
   const minOrderCents = parsePriceToCents(form.get("minOrder")) ?? 0;
+  const serviceFeePercent = Math.round(Number(String(form.get("serviceFeePercent") ?? "0").replace(",", ".")) || 0);
+  if (serviceFeePercent < 0 || serviceFeePercent > 30) return { error: "Taxa de serviço deve ficar entre 0 e 30%." };
   const acceptsDelivery = form.get("acceptsDelivery") === "on";
   const acceptsPickup = form.get("acceptsPickup") === "on";
   const acceptsDineIn = form.get("acceptsDineIn") === "on";
@@ -67,6 +69,7 @@ export async function saveStore(storeId: string, _prev: FormState, form: FormDat
         acceptsDineIn,
         deliveryFeeCents,
         minOrderCents,
+        serviceFeePercent,
       },
     }),
     prisma.openingHour.deleteMany({ where: { storeId } }),

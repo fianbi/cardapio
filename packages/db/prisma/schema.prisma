@@ -80,8 +80,8 @@ model VerificationToken {
 // ─── Estabelecimentos ───────────────────────────────────────────────────────
 
 model Store {
-  id          String  @id @default(cuid())
-  slug        String  @unique // usado na URL: /lojas/<slug>
+  id          String   @id @default(cuid())
+  slug        String   @unique // usado na URL: /lojas/<slug>
   name        String
   description String?
   logoUrl     String?
@@ -91,21 +91,22 @@ model Store {
   cuisines    String[] // ex.: ["lanches", "pizza", "açaí"]
 
   // Endereço
-  street   String?
-  number   String?
-  district String?
-  city     String
-  state    String  @db.Char(2)
-  zipCode  String?
+  street    String?
+  number    String?
+  district  String?
+  city      String
+  state     String  @db.Char(2)
+  zipCode   String?
   latitude  Float?
   longitude Float?
 
   // Formas de atendimento
-  acceptsDelivery  Boolean @default(true)
-  acceptsPickup    Boolean @default(true)
-  acceptsDineIn    Boolean @default(false)
-  deliveryFeeCents Int     @default(0)
-  minOrderCents    Int     @default(0)
+  acceptsDelivery   Boolean @default(true)
+  acceptsPickup     Boolean @default(true)
+  acceptsDineIn     Boolean @default(false)
+  deliveryFeeCents  Int     @default(0)
+  minOrderCents     Int     @default(0)
+  serviceFeePercent Int     @default(0) // taxa de serviço sugerida nas comandas (ex.: 10)
 
   isActive Boolean @default(true)
 
@@ -116,6 +117,8 @@ model Store {
   categories   MenuCategory[]
   products     Product[]
   orders       Order[]
+  tables       DiningTable[]
+  tabs         Tab[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -124,10 +127,10 @@ model Store {
 }
 
 model OpeningHour {
-  id      String @id @default(cuid())
-  storeId String
-  weekday Int // 0 = domingo ... 6 = sábado
-  opensAt String // "18:00"
+  id       String @id @default(cuid())
+  storeId  String
+  weekday  Int // 0 = domingo ... 6 = sábado
+  opensAt  String // "18:00"
   closesAt String // "23:30" (se menor que opensAt, fecha no dia seguinte)
 
   store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
@@ -204,11 +207,11 @@ model Order {
   type       OrderType
 
   customerName    String
-  customerPhone   String
+  customerPhone   String? // vazio em pedidos lançados pela equipe ou feitos na mesa
   deliveryAddress String?
   notes           String?
 
-  paymentMethod  PaymentMethod
+  paymentMethod  PaymentMethod? // vazio em pedidos de comanda: o pagamento é feito ao fechar a conta
   changeForCents Int? // troco para (pagamento em dinheiro)
 
   subtotalCents    Int
@@ -216,8 +219,11 @@ model Order {
   discountCents    Int @default(0)
   totalCents       Int
 
+  tabId String? // pedido feito dentro de uma comanda (mesa ou balcão)
+
   store    Store       @relation(fields: [storeId], references: [id])
   customer User?       @relation(fields: [customerId], references: [id])
+  tab      Tab?        @relation(fields: [tabId], references: [id])
   items    OrderItem[]
 
   createdAt DateTime @default(now())
@@ -226,6 +232,7 @@ model Order {
   @@unique([storeId, number])
   @@index([storeId, status, createdAt])
   @@index([customerId, createdAt])
+  @@index([tabId])
 }
 
 model OrderItem {
@@ -243,4 +250,57 @@ model OrderItem {
   product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
 
   @@index([orderId])
+}
+
+// ─── Mesas e comandas ───────────────────────────────────────────────────────
+
+model DiningTable {
+  id       String  @id @default(cuid()) // também vai no QR code da mesa
+  storeId  String
+  label    String // "Mesa 1", "Varanda 3"...
+  position Int     @default(0)
+  isActive Boolean @default(true)
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  tabs  Tab[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([storeId, position])
+}
+
+enum TabStatus {
+  OPEN
+  CLOSED
+  CANCELED
+}
+
+// Comanda: agrupa os pedidos de uma mesa (ou do balcão) até a conta ser fechada.
+// Só pode existir uma comanda aberta por mesa (índice parcial criado na migration).
+model Tab {
+  id      String    @id @default(cuid())
+  number  Int // sequencial por loja
+  storeId String
+  tableId String?
+  label   String? // nome do cliente ou identificação, ex.: "João" / "Balcão"
+  status  TabStatus @default(OPEN)
+
+  // Preenchidos ao fechar a conta
+  subtotalCents   Int?
+  serviceFeeCents Int?
+  discountCents   Int?
+  totalCents      Int?
+  paymentMethod   PaymentMethod?
+  closedAt        DateTime?
+
+  store  Store        @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  table  DiningTable? @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  orders Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([storeId, number])
+  @@index([storeId, status])
 }
