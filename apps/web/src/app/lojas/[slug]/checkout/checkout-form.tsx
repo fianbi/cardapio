@@ -8,6 +8,7 @@ import { useCart } from "@/lib/cart";
 import { formatPrice } from "@/lib/format";
 import { ORDER_TYPE_LABEL, PAYMENT_LABEL } from "@/lib/orders";
 import { QuantityControl } from "@/components/add-to-cart";
+import { submitKeepingValues } from "@/lib/form";
 import { placeOrder } from "./actions";
 
 type Props = {
@@ -81,7 +82,7 @@ export function CheckoutForm({ store, defaults }: Props) {
   }
 
   return (
-    <form action={submit} className="space-y-6">
+    <form onSubmit={submitKeepingValues(submit)} className="space-y-6">
       <section className="rounded-lg border border-stone-200 bg-white">
         <h2 className="border-b border-stone-200 px-4 py-3 font-semibold">Seu pedido</h2>
         <ul className="divide-y divide-stone-200">

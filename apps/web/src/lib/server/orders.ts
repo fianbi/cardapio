@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma, Prisma } from "@cardapio/db";
-import { checkStock, deductForOrder } from "./stock";
+import { getMissingIngredients } from "./ingredients";
 
 export type CartLine = { productId: string; quantity: number; notes?: string };
 
@@ -21,7 +21,8 @@ export async function buildOrderItems(storeId: string, lines: CartLine[]): Promi
     where: { id: { in: valid.map((i) => i.productId) }, storeId },
   });
   const byId = new Map(products.map((p) => [p.id, p]));
-  const unavailable = valid.filter((i) => !byId.get(i.productId)?.isAvailable);
+  const missing = await getMissingIngredients(storeId);
+  const unavailable = valid.filter((i) => !byId.get(i.productId)?.isAvailable || missing.has(i.productId));
   if (unavailable.length > 0) {
     const names = unavailable.map((i) => byId.get(i.productId)?.name).filter(Boolean);
     return {
@@ -42,9 +43,6 @@ export async function buildOrderItems(storeId: string, lines: CartLine[]): Promi
       notes: i.notes?.trim().slice(0, 200) || null,
     };
   });
-  const stockError = await checkStock(items);
-  if (stockError) return { ok: false, error: stockError };
-
   return { ok: true, items, subtotalCents: items.reduce((s, i) => s + i.unitPriceCents * i.quantity, 0) };
 }
 
@@ -63,12 +61,8 @@ export async function retryOnConflict<T>(fn: () => Promise<T>, attempts = 5): Pr
   }
 }
 
-type NewOrder = Omit<Prisma.OrderUncheckedCreateInput, "number" | "items"> & {
-  items: { create: { productId: string | null; quantity: number; productName: string; unitPriceCents: number; notes: string | null }[] };
-};
-
-/** Cria um pedido com o próximo número da loja e baixa o estoque dos ingredientes. */
-export function createOrder(data: NewOrder) {
+/** Cria um pedido com o próximo número da loja. */
+export function createOrder(data: Omit<Prisma.OrderUncheckedCreateInput, "number">) {
   return retryOnConflict(() =>
     prisma.$transaction(async (tx) => {
       const last = await tx.order.findFirst({
@@ -76,9 +70,7 @@ export function createOrder(data: NewOrder) {
         orderBy: { number: "desc" },
         select: { number: true },
       });
-      const order = await tx.order.create({ data: { ...data, number: (last?.number ?? 0) + 1 }, select: { id: true } });
-      await deductForOrder(tx, data.storeId, order.id, data.items.create);
-      return order;
+      return tx.order.create({ data: { ...data, number: (last?.number ?? 0) + 1 }, select: { id: true } });
     }),
   );
 }

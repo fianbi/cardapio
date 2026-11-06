@@ -7,7 +7,7 @@ import { ORDER_STATUS_LABEL, PAYMENT_LABEL } from "@/lib/orders";
 import { tabSubtotal } from "@/lib/server/tabs";
 import { TIMEZONE } from "@/lib/hours";
 import { AutoRefresh } from "@/components/auto-refresh";
-import { getStockAvailability } from "@/lib/server/stock";
+import { getMissingIngredients } from "@/lib/server/ingredients";
 import { secondaryButtonClass, inputClass, dangerButtonClass } from "@/components/ui";
 import { PrintButton } from "../../mesas/print-button";
 import { cancelTab, cancelTabOrder, renameTab } from "../actions";
@@ -42,8 +42,8 @@ export default async function TabPage({ params }: { params: Promise<{ storeId: s
       })
     : [];
 
-  const stock = open ? await getStockAvailability(storeId) : new Map();
-  const sellable = products.filter((p) => (stock.get(p.id)?.maxUnits ?? 1) > 0);
+  const missing = open ? await getMissingIngredients(storeId) : new Map<string, string[]>();
+  const sellable = products.filter((p) => !missing.has(p.id));
 
   const title = tab.table ? tab.table.label : tab.label || "Comanda avulsa";
 

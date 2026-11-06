@@ -7,7 +7,6 @@ import { requireStoreOwner } from "@/lib/store-auth";
 import { parsePriceToCents } from "@/lib/format";
 import { buildOrderItems, createOrder, type CartLine } from "@/lib/server/orders";
 import { openTab, serviceFee, tabSubtotal } from "@/lib/server/tabs";
-import { cancelOrderAndRestock, OutOfStockError } from "@/lib/server/stock";
 
 const PAYMENT_METHODS: PaymentMethod[] = ["PIX", "CASH", "CREDIT_CARD", "DEBIT_CARD"];
 
@@ -43,29 +42,27 @@ export async function addItemsToTab(storeId: string, tabId: string, lines: CartL
   const built = await buildOrderItems(storeId, lines);
   if (!built.ok) return built;
 
-  try {
-    await createOrder({
-      storeId,
-      tabId,
-      type: "DINE_IN",
-      status: "CONFIRMED",
-      customerName: tab.table?.label ?? tab.label ?? `Comanda ${tab.number}`,
-      notes: notes.trim().slice(0, 500) || null,
-      subtotalCents: built.subtotalCents,
-      totalCents: built.subtotalCents,
-      items: { create: built.items },
-    });
-  } catch (e) {
-    if (e instanceof OutOfStockError) return { ok: false, error: e.message };
-    throw e;
-  }
+  await createOrder({
+    storeId,
+    tabId,
+    type: "DINE_IN",
+    status: "CONFIRMED",
+    customerName: tab.table?.label ?? tab.label ?? `Comanda ${tab.number}`,
+    notes: notes.trim().slice(0, 500) || null,
+    subtotalCents: built.subtotalCents,
+    totalCents: built.subtotalCents,
+    items: { create: built.items },
+  });
   revalidate(storeId, tabId);
   return { ok: true };
 }
 
 export async function cancelTabOrder(storeId: string, tabId: string, orderId: string) {
   await requireStoreOwner(storeId);
-  await cancelOrderAndRestock(orderId, { tabId, storeId, status: { notIn: ["COMPLETED", "CANCELED"] } });
+  await prisma.order.updateMany({
+    where: { id: orderId, tabId, storeId, status: { notIn: ["COMPLETED", "CANCELED"] } },
+    data: { status: "CANCELED" },
+  });
   revalidate(storeId, tabId);
 }
 

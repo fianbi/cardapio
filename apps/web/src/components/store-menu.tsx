@@ -5,7 +5,7 @@ import { isOpenNow, todayLabel } from "@/lib/hours";
 import { AddToCart } from "@/components/add-to-cart";
 import { CartBar } from "@/components/cart-bar";
 import { OpenBadge } from "@/components/open-badge";
-import { getStockAvailability } from "@/lib/server/stock";
+import { getMissingIngredients } from "@/lib/server/ingredients";
 
 export type TableContext = { id: string; label: string };
 
@@ -23,9 +23,9 @@ export async function StoreMenu({ slug, table }: { slug: string; table?: TableCo
   });
 
   if (!store || !store.isActive) notFound();
-  // Produto sem ingrediente suficiente aparece como "em falta" automaticamente.
-  const stock = await getStockAvailability(store.id);
-  const inStock = (p: { id: string; isAvailable: boolean }) => p.isAvailable && (stock.get(p.id)?.maxUnits ?? 1) > 0;
+  // Produto com ingrediente marcado em falta aparece como "em falta" automaticamente.
+  const missing = await getMissingIngredients(store.id);
+  const inStock = (p: { id: string; isAvailable: boolean }) => p.isAvailable && !missing.has(p.id);
   const cartKey = table ? `${store.slug}--mesa-${table.id}` : store.slug;
   const checkoutHref = table ? `/lojas/${store.slug}/mesa/${table.id}/pedido` : `/lojas/${store.slug}/checkout`;
   const open = isOpenNow(store.openingHours);

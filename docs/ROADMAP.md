@@ -19,7 +19,8 @@
 
 ## Fase 4 — Operação da lanchonete
 - Comandas e mesas ✅ (QR code por mesa, pedido na mesa sem login, fechamento de conta)
-- Controle de estoque com ficha técnica (produto ↔ ingredientes); item fica "em falta" automaticamente
+- Ingredientes por produto ✅ (marcar ingrediente em falta deixa os produtos que usam ele "em falta")
+- Controle de estoque com quantidades e baixa automática (adiado para depois do MVP)
 - Promoções e cupons
 - Emissão de NFC-e sob demanda (via API de terceiros, ex.: Focus NFe, PlugNotas)
 
