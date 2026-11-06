@@ -2,6 +2,7 @@
 
 import { prisma, type OrderType, type PaymentMethod } from "@cardapio/db";
 import { buildOrderItems, createOrder } from "@/lib/server/orders";
+import { OutOfStockError } from "@/lib/server/stock";
 import { auth } from "@/auth";
 import { isOpenNow } from "@/lib/hours";
 import { formatPrice } from "@/lib/format";
@@ -99,6 +100,7 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
     await prisma.user.update({ where: { id: session.user.id }, data: { phone } }).catch(() => {});
     return { ok: true, orderId: order.id };
   } catch (e) {
+    if (e instanceof OutOfStockError) return { ok: false, error: e.message };
     console.error("Erro ao criar pedido", e);
     return { ok: false, error: "Não foi possível enviar o pedido. Tente novamente." };
   }

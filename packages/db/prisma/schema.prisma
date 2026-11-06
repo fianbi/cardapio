@@ -119,6 +119,8 @@ model Store {
   orders       Order[]
   tables       DiningTable[]
   tabs         Tab[]
+  ingredients  Ingredient[]
+  stockMoves   StockMovement[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -166,6 +168,7 @@ model Product {
   store      Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
   category   MenuCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   orderItems OrderItem[]
+  recipe     RecipeItem[] // ficha técnica: ingredientes usados em 1 unidade do produto
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -221,10 +224,11 @@ model Order {
 
   tabId String? // pedido feito dentro de uma comanda (mesa ou balcão)
 
-  store    Store       @relation(fields: [storeId], references: [id])
-  customer User?       @relation(fields: [customerId], references: [id])
-  tab      Tab?        @relation(fields: [tabId], references: [id])
-  items    OrderItem[]
+  store      Store           @relation(fields: [storeId], references: [id])
+  customer   User?           @relation(fields: [customerId], references: [id])
+  tab        Tab?            @relation(fields: [tabId], references: [id])
+  items      OrderItem[]
+  stockMoves StockMovement[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -303,4 +307,71 @@ model Tab {
 
   @@unique([storeId, number])
   @@index([storeId, status])
+}
+
+// ─── Estoque ────────────────────────────────────────────────────────────────
+
+enum IngredientUnit {
+  UNIT // unidades (pão, ovo, lata)
+  GRAM
+  MILLILITER
+}
+
+// Quantidades ficam em números inteiros na unidade base (un, g ou ml).
+model Ingredient {
+  id       String         @id @default(cuid())
+  storeId  String
+  name     String
+  unit     IngredientUnit
+  stockQty Int            @default(0)
+  minQty   Int            @default(0) // abaixo disso aparece o alerta de estoque baixo
+
+  store     Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  recipes   RecipeItem[]
+  movements StockMovement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([storeId, name])
+}
+
+model RecipeItem {
+  id           String @id @default(cuid())
+  productId    String
+  ingredientId String
+  quantity     Int // por unidade do produto, na unidade base do ingrediente
+
+  product    Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, ingredientId])
+}
+
+enum StockMovementReason {
+  PURCHASE // entrada / compra
+  SALE // baixa automática por pedido
+  RETURN // pedido cancelado devolve o que foi baixado
+  ADJUSTMENT // contagem / ajuste manual
+  LOSS // perda, quebra, vencimento
+}
+
+model StockMovement {
+  id           String              @id @default(cuid())
+  storeId      String
+  ingredientId String
+  delta        Int // positivo = entrada, negativo = saída
+  reason       StockMovementReason
+  orderId      String?
+  note         String?
+
+  store      Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  order      Order?     @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([storeId, createdAt])
+  @@index([ingredientId, createdAt])
+  @@index([orderId])
 }
