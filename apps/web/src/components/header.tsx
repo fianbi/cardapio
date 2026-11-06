@@ -18,6 +18,11 @@ export async function Header() {
             }}
             className="flex items-center gap-3 text-sm"
           >
+            {session.user.role !== "CUSTOMER" && (
+              <Link href="/painel" className="font-medium text-brand-700 hover:underline">
+                Minha loja
+              </Link>
+            )}
             <Link href="/pedidos" className="font-medium text-brand-700 hover:underline">
               Meus pedidos
             </Link>

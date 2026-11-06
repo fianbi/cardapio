@@ -126,6 +126,13 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
           ))}
         </ul>
       )}
+
+      <p className="pt-6 text-center text-sm text-stone-500">
+        Tem uma lanchonete ou restaurante?{" "}
+        <Link href="/painel/nova" className="font-medium text-brand-700 hover:underline">
+          Cadastre sua loja
+        </Link>
+      </p>
     </div>
   );
 }
