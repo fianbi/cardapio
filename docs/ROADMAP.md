@@ -11,7 +11,7 @@
 - Pagamento na entrega (dinheiro, Pix, cartão); todo o fluxo do pedido acontece dentro do aplicativo
 - Acompanhamento do pedido pelo cliente
 
-## Fase 3 — Painel do lojista e publicação
+## Fase 3 — Painel do lojista ✅ (publicação pendente)
 - Cadastro do estabelecimento, horários, taxa de entrega
 - Gestão de categorias e produtos (com fotos) e marcação "em falta"
 - Fila de pedidos em tempo real com mudança de status

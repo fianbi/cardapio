@@ -29,3 +29,31 @@ export function statusSteps(type: OrderType): OrderStatus[] {
     ? ["PENDING", "CONFIRMED", "PREPARING", "OUT_FOR_DELIVERY", "COMPLETED"]
     : ["PENDING", "CONFIRMED", "PREPARING", "READY", "COMPLETED"];
 }
+
+/** Próximos status permitidos a partir do atual (o que o lojista pode fazer). */
+export function nextStatuses(status: OrderStatus, type: OrderType): OrderStatus[] {
+  switch (status) {
+    case "PENDING":
+      return ["CONFIRMED", "CANCELED"];
+    case "CONFIRMED":
+      return ["PREPARING", "CANCELED"];
+    case "PREPARING":
+      return [type === "DELIVERY" ? "OUT_FOR_DELIVERY" : "READY", "CANCELED"];
+    case "READY":
+    case "OUT_FOR_DELIVERY":
+      return ["COMPLETED", "CANCELED"];
+    default:
+      return [];
+  }
+}
+
+/** Texto do botão que leva ao status. */
+export const STATUS_ACTION_LABEL: Record<OrderStatus, string> = {
+  PENDING: "",
+  CONFIRMED: "Aceitar pedido",
+  PREPARING: "Iniciar preparo",
+  READY: "Marcar como pronto",
+  OUT_FOR_DELIVERY: "Saiu para entrega",
+  COMPLETED: "Concluir",
+  CANCELED: "Cancelar",
+};

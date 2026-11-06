@@ -57,7 +57,11 @@ export default async function StorePage({ params }: { params: Promise<{ slug: st
                 key={product.id}
                 className={`flex items-start justify-between gap-4 p-4 ${product.isAvailable ? "" : "opacity-50"}`}
               >
-                <div>
+                {product.imageUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={product.imageUrl} alt="" className="h-20 w-20 shrink-0 rounded-md object-cover" />
+                )}
+                <div className="flex-1">
                   <p className="font-medium">{product.name}</p>
                   {product.description && <p className="text-sm text-stone-600">{product.description}</p>}
                   <p className="mt-1 font-semibold">{formatPrice(product.priceCents)}</p>
