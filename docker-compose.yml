@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: cardapio
       POSTGRES_DB: cardapio
     ports:
-      - "5432:5432"
+      - "5433:5432"  # 5433 no seu PC, para não conflitar com outro Postgres local
     volumes:
       - pgdata:/var/lib/postgresql/data
 
