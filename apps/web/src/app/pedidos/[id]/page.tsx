@@ -102,7 +102,7 @@ export default async function OrderPage({
             <span>{formatPrice(order.totalCents)}</span>
           </div>
           <p className="pt-2 text-stone-600">
-            Pagamento: {PAYMENT_LABEL[order.paymentMethod]}
+            Pagamento: {order.paymentMethod ? PAYMENT_LABEL[order.paymentMethod] : "na comanda"}
             {order.changeForCents && ` · troco para ${formatPrice(order.changeForCents)}`}
           </p>
           {order.deliveryAddress && <p className="text-stone-600">Entrega em: {order.deliveryAddress}</p>}

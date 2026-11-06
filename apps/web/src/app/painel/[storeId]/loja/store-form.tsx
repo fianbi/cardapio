@@ -28,6 +28,7 @@ type Props = {
     acceptsDineIn: boolean;
     deliveryFee: string;
     minOrder: string;
+    serviceFeePercent: string;
   };
   hours: Hour[];
 };
@@ -100,9 +101,10 @@ export function StoreForm({ storeId, values: v, hours }: Props) {
             </label>
           ))}
         </div>
-        <div className="grid max-w-md grid-cols-2 gap-3">
+        <div className="grid max-w-xl grid-cols-3 gap-3">
           {field("Taxa de entrega (R$)", "deliveryFee", v.deliveryFee, { inputMode: "decimal", placeholder: "0,00" })}
           {field("Pedido mínimo (R$)", "minOrder", v.minOrder, { inputMode: "decimal", placeholder: "0,00" })}
+          {field("Taxa de serviço nas mesas (%)", "serviceFeePercent", v.serviceFeePercent, { inputMode: "numeric", placeholder: "10" })}
         </div>
       </section>
 

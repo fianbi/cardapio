@@ -1,6 +1,7 @@
 "use server";
 
-import { prisma, Prisma, type OrderType, type PaymentMethod } from "@cardapio/db";
+import { prisma, type OrderType, type PaymentMethod } from "@cardapio/db";
+import { buildOrderItems, createOrder } from "@/lib/server/orders";
 import { auth } from "@/auth";
 import { isOpenNow } from "@/lib/hours";
 import { formatPrice } from "@/lib/format";
@@ -59,32 +60,9 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
   if (input.type === "DELIVERY" && !address) return { ok: false, error: "Informe o endereço de entrega." };
 
   // Preços sempre vêm do banco, nunca do navegador.
-  const products = await prisma.product.findMany({
-    where: { id: { in: items.map((i) => i.productId) }, storeId: store.id },
-  });
-  const byId = new Map(products.map((p) => [p.id, p]));
-  const unavailable = items.filter((i) => !byId.get(i.productId)?.isAvailable);
-  if (unavailable.length > 0) {
-    const names = unavailable.map((i) => byId.get(i.productId)?.name).filter(Boolean);
-    return {
-      ok: false,
-      error: names.length
-        ? `Não temos mais: ${names.join(", ")}. Remova do carrinho para continuar.`
-        : "Alguns itens do carrinho não existem mais. Remova-os para continuar.",
-    };
-  }
-
-  const orderItems = items.map((i) => {
-    const p = byId.get(i.productId)!;
-    return {
-      productId: p.id,
-      productName: p.name,
-      unitPriceCents: p.priceCents,
-      quantity: i.quantity,
-      notes: i.notes?.trim().slice(0, 200) || null,
-    };
-  });
-  const subtotalCents = orderItems.reduce((s, i) => s + i.unitPriceCents * i.quantity, 0);
+  const built = await buildOrderItems(store.id, items);
+  if (!built.ok) return built;
+  const { items: orderItems, subtotalCents } = built;
   if (subtotalCents < store.minOrderCents) {
     return { ok: false, error: `O pedido mínimo desta loja é ${formatPrice(store.minOrderCents)}.` };
   }
@@ -100,44 +78,28 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
     }
   }
 
-  // Número sequencial por loja; se dois pedidos chegarem juntos, tenta de novo.
-  for (let attempt = 0; attempt < 5; attempt++) {
-    try {
-      const order = await prisma.$transaction(async (tx) => {
-        const last = await tx.order.findFirst({
-          where: { storeId: store.id },
-          orderBy: { number: "desc" },
-          select: { number: true },
-        });
-        return tx.order.create({
-          data: {
-            number: (last?.number ?? 0) + 1,
-            storeId: store.id,
-            customerId: session.user.id,
-            type: input.type,
-            customerName: name.slice(0, 100),
-            customerPhone: phone,
-            deliveryAddress: input.type === "DELIVERY" ? address!.slice(0, 300) : null,
-            notes: input.notes?.trim().slice(0, 500) || null,
-            paymentMethod: input.paymentMethod,
-            changeForCents,
-            subtotalCents,
-            deliveryFeeCents,
-            totalCents,
-            items: { create: orderItems },
-          },
-          select: { id: true },
-        });
-      });
+  try {
+    const order = await createOrder({
+      storeId: store.id,
+      customerId: session.user.id,
+      type: input.type,
+      customerName: name.slice(0, 100),
+      customerPhone: phone,
+      deliveryAddress: input.type === "DELIVERY" ? address!.slice(0, 300) : null,
+      notes: input.notes?.trim().slice(0, 500) || null,
+      paymentMethod: input.paymentMethod,
+      changeForCents,
+      subtotalCents,
+      deliveryFeeCents,
+      totalCents,
+      items: { create: orderItems },
+    });
 
-      // Guarda o telefone para preencher automaticamente da próxima vez.
-      await prisma.user.update({ where: { id: session.user.id }, data: { phone } }).catch(() => {});
-      return { ok: true, orderId: order.id };
-    } catch (e) {
-      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") continue;
-      console.error("Erro ao criar pedido", e);
-      return { ok: false, error: "Não foi possível enviar o pedido. Tente novamente." };
-    }
+    // Guarda o telefone para preencher automaticamente da próxima vez.
+    await prisma.user.update({ where: { id: session.user.id }, data: { phone } }).catch(() => {});
+    return { ok: true, orderId: order.id };
+  } catch (e) {
+    console.error("Erro ao criar pedido", e);
+    return { ok: false, error: "Não foi possível enviar o pedido. Tente novamente." };
   }
-  return { ok: false, error: "A loja está recebendo muitos pedidos agora. Tente novamente em instantes." };
 }

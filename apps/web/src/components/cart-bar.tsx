@@ -5,7 +5,15 @@ import { useCart } from "@/lib/cart";
 import { formatPrice } from "@/lib/format";
 
 /** Barra fixa no rodapé com o resumo do carrinho e o botão de finalizar. */
-export function CartBar({ storeSlug, isOpen }: { storeSlug: string; isOpen: boolean }) {
+export function CartBar({
+  storeSlug,
+  isOpen,
+  checkoutHref,
+}: {
+  storeSlug: string;
+  isOpen: boolean;
+  checkoutHref: string;
+}) {
   const { count, subtotalCents, loaded } = useCart(storeSlug);
   if (!loaded || count === 0) return null;
 
@@ -21,7 +29,7 @@ export function CartBar({ storeSlug, isOpen }: { storeSlug: string; isOpen: bool
         </div>
         {isOpen ? (
           <Link
-            href={`/lojas/${storeSlug}/checkout`}
+            href={checkoutHref}
             className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
           >
             Ver carrinho
