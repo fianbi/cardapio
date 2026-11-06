@@ -1,0 +1,246 @@
+// Modelo de dados do Cardápio.
+// Valores em dinheiro são guardados em centavos (Int) para evitar erros de arredondamento.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Usuários e autenticação (tabelas exigidas pelo Auth.js) ────────────────
+
+enum UserRole {
+  CUSTOMER // cliente que faz pedidos
+  STORE_OWNER // dono de lanchonete/restaurante
+  ADMIN // administração da plataforma
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  phone         String?
+  role          UserRole  @default(CUSTOMER)
+
+  accounts Account[]
+  sessions Session[]
+  stores   Store[]   @relation("StoreOwner")
+  orders   Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─── Estabelecimentos ───────────────────────────────────────────────────────
+
+model Store {
+  id          String  @id @default(cuid())
+  slug        String  @unique // usado na URL: /lojas/<slug>
+  name        String
+  description String?
+  logoUrl     String?
+  coverUrl    String?
+  phone       String?
+  whatsapp    String?
+  cuisines    String[] // ex.: ["lanches", "pizza", "açaí"]
+
+  // Endereço
+  street   String?
+  number   String?
+  district String?
+  city     String
+  state    String  @db.Char(2)
+  zipCode  String?
+  latitude  Float?
+  longitude Float?
+
+  // Formas de atendimento
+  acceptsDelivery  Boolean @default(true)
+  acceptsPickup    Boolean @default(true)
+  acceptsDineIn    Boolean @default(false)
+  deliveryFeeCents Int     @default(0)
+  minOrderCents    Int     @default(0)
+
+  isActive Boolean @default(true)
+
+  ownerId String
+  owner   User   @relation("StoreOwner", fields: [ownerId], references: [id])
+
+  openingHours OpeningHour[]
+  categories   MenuCategory[]
+  products     Product[]
+  orders       Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([city, isActive])
+}
+
+model OpeningHour {
+  id      String @id @default(cuid())
+  storeId String
+  weekday Int // 0 = domingo ... 6 = sábado
+  opensAt String // "18:00"
+  closesAt String // "23:30" (se menor que opensAt, fecha no dia seguinte)
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, weekday])
+}
+
+// ─── Cardápio ───────────────────────────────────────────────────────────────
+
+model MenuCategory {
+  id       String @id @default(cuid())
+  storeId  String
+  name     String
+  position Int    @default(0)
+
+  store    Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  products Product[]
+
+  @@index([storeId, position])
+}
+
+model Product {
+  id          String  @id @default(cuid())
+  storeId     String
+  categoryId  String?
+  name        String
+  description String?
+  priceCents  Int
+  imageUrl    String?
+  isAvailable Boolean @default(true) // false = "em falta" (futuramente calculado pelo estoque)
+  position    Int     @default(0)
+
+  store      Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  category   MenuCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  orderItems OrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([storeId, categoryId, position])
+}
+
+// ─── Pedidos ────────────────────────────────────────────────────────────────
+
+enum OrderStatus {
+  PENDING // aguardando a loja aceitar
+  CONFIRMED
+  PREPARING
+  READY
+  OUT_FOR_DELIVERY
+  COMPLETED
+  CANCELED
+}
+
+enum OrderType {
+  DELIVERY
+  PICKUP
+  DINE_IN
+}
+
+enum PaymentMethod {
+  CASH
+  PIX
+  CREDIT_CARD
+  DEBIT_CARD
+}
+
+model Order {
+  id         String      @id @default(cuid())
+  number     Int // número sequencial por loja, mostrado ao cliente
+  storeId    String
+  customerId String?
+  status     OrderStatus @default(PENDING)
+  type       OrderType
+
+  customerName    String
+  customerPhone   String
+  deliveryAddress String?
+  notes           String?
+
+  paymentMethod  PaymentMethod
+  changeForCents Int? // troco para (pagamento em dinheiro)
+
+  subtotalCents    Int
+  deliveryFeeCents Int @default(0)
+  discountCents    Int @default(0)
+  totalCents       Int
+
+  store    Store       @relation(fields: [storeId], references: [id])
+  customer User?       @relation(fields: [customerId], references: [id])
+  items    OrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([storeId, number])
+  @@index([storeId, status, createdAt])
+  @@index([customerId, createdAt])
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  productId String?
+
+  // Cópia dos dados do produto no momento do pedido (o preço pode mudar depois)
+  productName    String
+  unitPriceCents Int
+  quantity       Int
+  notes          String?
+
+  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+}
