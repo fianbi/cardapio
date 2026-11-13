@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { groupHint, hasUnsatisfiableGroup, optionsLabel, selectOptions, type OptionGroupLike } from "../options";
+import { groupHint, hasUnsatisfiableGroup, optionsLabel, selectOptions, type OptionGroupLike } from "@cardapio/shared/options";
 
 const groups: OptionGroupLike[] = [
   {

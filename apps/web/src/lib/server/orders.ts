@@ -1,7 +1,7 @@
 import "server-only";
 import { prisma, Prisma } from "@cardapio/db";
 import { getMissingIngredients } from "./ingredients";
-import { selectOptions } from "../options";
+import { selectOptions } from "@cardapio/shared/options";
 
 export type CartLine = { productId: string; quantity: number; notes?: string; optionIds?: string[] };
 

@@ -1,7 +1,7 @@
 import "server-only";
 import { prisma, type Prisma } from "@cardapio/db";
 import { isOpenNow, todayLabel } from "../hours";
-import { hasUnsatisfiableGroup } from "../options";
+import { hasUnsatisfiableGroup } from "@cardapio/shared/options";
 import { estimatedReadyAt, statusSteps } from "../orders";
 import { getMissingIngredients } from "./ingredients";
 import { PUBLIC_STORE } from "./stores";
