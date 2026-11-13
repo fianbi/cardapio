@@ -1,6 +1,7 @@
 import "server-only";
 import { notFound } from "next/navigation";
 import { prisma } from "@cardapio/db";
+import { isPublicStore } from "./stores";
 
 /** Mesa válida (ativa e da loja publicada) a partir da URL do QR code. */
 export async function getTableOr404(slug: string, tableId: string) {
@@ -8,6 +9,6 @@ export async function getTableOr404(slug: string, tableId: string) {
     where: { id: tableId },
     include: { store: { include: { openingHours: true } } },
   });
-  if (!table || !table.isActive || table.store.slug !== slug || !table.store.isActive) notFound();
+  if (!table || !table.isActive || table.store.slug !== slug || !isPublicStore(table.store)) notFound();
   return table;
 }

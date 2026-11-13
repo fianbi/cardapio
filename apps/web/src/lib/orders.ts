@@ -57,3 +57,21 @@ export const STATUS_ACTION_LABEL: Record<OrderStatus, string> = {
   COMPLETED: "Concluir",
   CANCELED: "Cancelar",
 };
+
+/** Tempos estimados (minutos) que a loja pode informar ao aceitar o pedido. */
+export const ESTIMATE_OPTIONS = [15, 20, 30, 40, 50, 60, 90];
+
+/** Motivos prontos para recusar/cancelar um pedido. */
+export const CANCEL_REASONS = [
+  "Item em falta",
+  "Loja muito cheia no momento",
+  "Fora da área de entrega",
+  "Não conseguimos contato com o cliente",
+  "Loja fechando",
+];
+
+/** Horário previsto (confirmação + tempo estimado). */
+export function estimatedReadyAt(order: { confirmedAt: Date | string | null; estimatedMinutes: number | null }) {
+  if (!order.confirmedAt || !order.estimatedMinutes) return null;
+  return new Date(new Date(order.confirmedAt).getTime() + order.estimatedMinutes * 60_000);
+}

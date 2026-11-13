@@ -20,11 +20,22 @@
 ## Fase 4 — Operação da lanchonete
 - Comandas e mesas ✅ (QR code por mesa, pedido na mesa sem login, fechamento de conta)
 - Ingredientes por produto ✅ (marcar ingrediente em falta deixa os produtos que usam ele "em falta")
-- Controle de estoque com quantidades e baixa automática (adiado para depois do MVP)
+- Adicionais e opções por produto ✅
+- Alerta sonoro, tempo estimado, motivo de cancelamento, pausar pedidos e impressão ✅
+- Upload de fotos ✅
+- Controle de estoque com quantidades e baixa automática (adiado)
 - Promoções e cupons
 - Emissão de NFC-e sob demanda (via API de terceiros, ex.: Focus NFe, PlugNotas)
 
-## Fase 5 — Apps
-- App mobile para clientes e lojistas (Expo / React Native)
-- App desktop para as lanchonetes (Tauri ou Electron), com impressão de pedidos
+## Fase 5 — Lançamento v1 (ver [LANCAMENTO.md](LANCAMENTO.md))
+- App do cliente para Android e iPhone (Expo) ✅ código pronto; falta publicar nas lojas
+- API `/api/v1` para o app, com login Google e Apple ✅
+- Backoffice `/admin` com aprovação de lojas ✅
+- Termos de uso e política de privacidade ✅ (modelo inicial)
+- Testes automatizados ✅
+- Deploy do servidor (Vercel + Neon) e domínio
+
+## Depois do lançamento
 - Pagamento online (Pix/cartão via Mercado Pago, Stripe ou similar)
+- App do restaurante para celular e app desktop
+- Taxa de entrega por bairro, login por e-mail, avaliações

@@ -87,6 +87,7 @@ async function main() {
         whatsapp: "5511999999999",
         deliveryFeeCents: s.deliveryFeeCents,
         acceptsDineIn: s.acceptsDineIn ?? false,
+        approvalStatus: "APPROVED",
         ownerId: owner.id,
         openingHours: {
           create: [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({ weekday, ...s.hours })),
@@ -105,6 +106,38 @@ async function main() {
       const category = store.categories.find((x) => x.name === c.category)!;
       await prisma.product.createMany({
         data: c.products.map((p, pi) => ({ ...p, storeId: store.id, categoryId: category.id, position: pi })),
+      });
+    }
+    // Exemplo de adicionais nos lanches "X-...": ponto da carne (obrigatório) e extras (opcionais).
+    const burgers = await prisma.product.findMany({ where: { storeId: store.id, name: { startsWith: "X-" } } });
+    for (const burger of burgers) {
+      await prisma.optionGroup.create({
+        data: {
+          productId: burger.id,
+          name: "Ponto da carne",
+          minSelect: 1,
+          maxSelect: 1,
+          position: 0,
+          options: {
+            create: ["Mal passado", "Ao ponto", "Bem passado"].map((name, position) => ({ name, position })),
+          },
+        },
+      });
+      await prisma.optionGroup.create({
+        data: {
+          productId: burger.id,
+          name: "Adicionais",
+          minSelect: 0,
+          maxSelect: 3,
+          position: 1,
+          options: {
+            create: [
+              { name: "Bacon", priceCents: 400, position: 0 },
+              { name: "Ovo", priceCents: 200, position: 1 },
+              { name: "Cheddar", priceCents: 300, position: 2 },
+            ],
+          },
+        },
       });
     }
     console.log(`Criada: ${s.name}`);

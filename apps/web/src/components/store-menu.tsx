@@ -5,6 +5,8 @@ import { isOpenNow, todayLabel } from "@/lib/hours";
 import { AddToCart } from "@/components/add-to-cart";
 import { CartBar } from "@/components/cart-bar";
 import { OpenBadge } from "@/components/open-badge";
+import { isPublicStore } from "@/lib/server/stores";
+import { hasUnsatisfiableGroup } from "@/lib/options";
 import { getMissingIngredients } from "@/lib/server/ingredients";
 
 export type TableContext = { id: string; label: string };
@@ -17,18 +19,27 @@ export async function StoreMenu({ slug, table }: { slug: string; table?: TableCo
       openingHours: true,
       categories: {
         orderBy: { position: "asc" },
-        include: { products: { orderBy: { position: "asc" } } },
+        include: {
+          products: {
+            orderBy: { position: "asc" },
+            include: {
+              optionGroups: { orderBy: { position: "asc" }, include: { options: { orderBy: { position: "asc" } } } },
+            },
+          },
+        },
       },
     },
   });
 
-  if (!store || !store.isActive) notFound();
+  if (!store || !isPublicStore(store)) notFound();
   // Produto com ingrediente marcado em falta aparece como "em falta" automaticamente.
   const missing = await getMissingIngredients(store.id);
-  const inStock = (p: { id: string; isAvailable: boolean }) => p.isAvailable && !missing.has(p.id);
+  const inStock = (p: (typeof store.categories)[number]["products"][number]) =>
+    p.isAvailable && !missing.has(p.id) && !hasUnsatisfiableGroup(p.optionGroups);
   const cartKey = table ? `${store.slug}--mesa-${table.id}` : store.slug;
   const checkoutHref = table ? `/lojas/${store.slug}/mesa/${table.id}/pedido` : `/lojas/${store.slug}/checkout`;
   const open = isOpenNow(store.openingHours);
+  const canOrder = open && !store.isPaused;
   const modes = [
     store.acceptsDelivery && `Entrega ${store.deliveryFeeCents ? formatPrice(store.deliveryFeeCents) : "grátis"}`,
     store.acceptsPickup && "Retirada",
@@ -56,6 +67,11 @@ export async function StoreMenu({ slug, table }: { slug: string; table?: TableCo
               Ver conta da mesa
             </a>
           </div>
+        )}
+        {open && store.isPaused && (
+          <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            A loja pausou os pedidos por alguns minutos. Você pode ver o cardápio e tentar daqui a pouco.
+          </p>
         )}
         {!open && (
           <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
@@ -85,8 +101,19 @@ export async function StoreMenu({ slug, table }: { slug: string; table?: TableCo
                 </div>
                 <AddToCart
                   storeSlug={cartKey}
-                  product={{ id: product.id, name: product.name, priceCents: product.priceCents }}
-                  disabled={!inStock(product) || !open}
+                  product={{
+                    id: product.id,
+                    name: product.name,
+                    priceCents: product.priceCents,
+                    optionGroups: product.optionGroups.map((g) => ({
+                      id: g.id,
+                      name: g.name,
+                      minSelect: g.minSelect,
+                      maxSelect: g.maxSelect,
+                      options: g.options.map((o) => ({ id: o.id, name: o.name, priceCents: o.priceCents, isAvailable: o.isAvailable })),
+                    })),
+                  }}
+                  disabled={!inStock(product) || !canOrder}
                 />
               </li>
             ))}
@@ -94,7 +121,7 @@ export async function StoreMenu({ slug, table }: { slug: string; table?: TableCo
         </section>
       ))}
 
-      <CartBar storeSlug={cartKey} isOpen={open} checkoutHref={checkoutHref} />
+      <CartBar storeSlug={cartKey} isOpen={canOrder} checkoutHref={checkoutHref} />
     </div>
   );
 }

@@ -3,7 +3,8 @@ import Link from "next/link";
 import { prisma } from "@cardapio/db";
 import { auth } from "@/auth";
 import { formatPrice } from "@/lib/format";
-import { ORDER_STATUS_LABEL, ORDER_TYPE_LABEL, PAYMENT_LABEL, statusSteps } from "@/lib/orders";
+import { ORDER_STATUS_LABEL, ORDER_TYPE_LABEL, PAYMENT_LABEL, estimatedReadyAt, statusSteps } from "@/lib/orders";
+import { optionsLabel } from "@/lib/options";
 import { AutoRefresh } from "@/components/auto-refresh";
 
 export const dynamic = "force-dynamic";
@@ -21,13 +22,14 @@ export default async function OrderPage({
 
   const order = await prisma.order.findUnique({
     where: { id },
-    include: { items: true, store: { select: { name: true, slug: true } } },
+    include: { items: { include: { options: true } }, store: { select: { name: true, slug: true } } },
   });
   if (!order || order.customerId !== session.user.id) notFound();
 
   const steps = statusSteps(order.type);
   const current = steps.indexOf(order.status);
   const finished = order.status === "COMPLETED" || order.status === "CANCELED";
+  const eta = estimatedReadyAt(order);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -55,7 +57,10 @@ export default async function OrderPage({
 
       <section className="rounded-lg border border-stone-200 bg-white p-4">
         {order.status === "CANCELED" ? (
-          <p className="font-semibold text-red-700">Pedido cancelado</p>
+          <div>
+            <p className="font-semibold text-red-700">Pedido cancelado</p>
+            {order.cancelReason && <p className="text-sm text-stone-600">Motivo: {order.cancelReason}</p>}
+          </div>
         ) : (
           <ol className="space-y-2">
             {steps.map((step, i) => (
@@ -70,6 +75,12 @@ export default async function OrderPage({
             ))}
           </ol>
         )}
+        {eta && !finished && (
+          <p className="mt-3 text-sm text-stone-600">
+            Previsão: <strong>{eta.toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" })}</strong>{" "}
+            ({order.estimatedMinutes} min)
+          </p>
+        )}
       </section>
 
       <section className="rounded-lg border border-stone-200 bg-white">
@@ -80,6 +91,7 @@ export default async function OrderPage({
                 <p>
                   {item.quantity}x {item.productName}
                 </p>
+                {item.options.length > 0 && <p className="text-stone-600">{optionsLabel(item.options)}</p>}
                 {item.notes && <p className="text-stone-500">{item.notes}</p>}
               </div>
               <span>{formatPrice(item.unitPriceCents * item.quantity)}</span>
