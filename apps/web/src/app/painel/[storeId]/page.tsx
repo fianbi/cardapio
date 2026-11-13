@@ -5,13 +5,18 @@ import {
   ORDER_STATUS_LABEL,
   ORDER_TYPE_LABEL,
   PAYMENT_LABEL,
+  CANCEL_REASONS,
+  ESTIMATE_OPTIONS,
   STATUS_ACTION_LABEL,
+  estimatedReadyAt,
   nextStatuses,
 } from "@/lib/orders";
+import { optionsLabel } from "@/lib/options";
+import { NewOrderAlert } from "@/components/new-order-alert";
 import { TIMEZONE } from "@/lib/hours";
 import { AutoRefresh } from "@/components/auto-refresh";
-import { buttonClass, dangerButtonClass } from "@/components/ui";
-import { updateOrderStatus } from "./actions";
+import { buttonClass, dangerButtonClass, inputClass, secondaryButtonClass } from "@/components/ui";
+import { acceptOrder, cancelOrder, setPaused, updateOrderStatus } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +35,7 @@ export default async function OrdersPanel({ params }: { params: Promise<{ storeI
     prisma.order.findMany({
       where: { storeId, status: { in: [...ACTIVE] } },
       orderBy: { createdAt: "asc" },
-      include: { items: true, tab: { select: { number: true, label: true, table: { select: { label: true } } } } },
+      include: { items: { include: { options: true } }, tab: { select: { number: true, label: true, table: { select: { label: true } } } } },
     }),
     prisma.order.findMany({
       where: { storeId, status: { in: ["COMPLETED", "CANCELED"] }, updatedAt: { gte: since } },
@@ -49,6 +54,36 @@ export default async function OrdersPanel({ params }: { params: Promise<{ storeI
   return (
     <div className="space-y-8">
       <AutoRefresh seconds={10} />
+      <NewOrderAlert pendingIds={pending.map((o) => o.id)} storeName={store.name} />
+
+      {store.isActive && (
+        <div
+          className={`flex flex-wrap items-center justify-between gap-2 rounded-md px-4 py-2 text-sm ${store.isPaused ? "bg-red-50 text-red-800" : "bg-stone-100 text-stone-700"}`}
+        >
+          <span>
+            {store.isPaused
+              ? "Pedidos pausados: os clientes veem o cardápio, mas não conseguem pedir."
+              : "Recebendo pedidos no horário de funcionamento."}
+          </span>
+          <form action={setPaused.bind(null, storeId, !store.isPaused)}>
+            <button className={store.isPaused ? buttonClass : secondaryButtonClass}>
+              {store.isPaused ? "Voltar a receber pedidos" : "Pausar pedidos"}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {store.approvalStatus === "PENDING" && (
+        <p className="rounded-md bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Sua loja está aguardando a aprovação da plataforma. Você já pode montar o cardápio; ela aparece para os
+          clientes assim que for aprovada e publicada.
+        </p>
+      )}
+      {store.approvalStatus === "SUSPENDED" && (
+        <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-800">
+          Sua loja foi suspensa pela plataforma e não aparece para os clientes. Entre em contato com o suporte.
+        </p>
+      )}
 
       {!store.isActive && (
         <p className="rounded-md bg-amber-50 px-4 py-3 text-sm text-amber-800">
@@ -103,6 +138,7 @@ export default async function OrdersPanel({ params }: { params: Promise<{ storeI
                     {o.items.map((i) => (
                       <li key={i.id}>
                         <strong>{i.quantity}x</strong> {i.productName}
+                        {i.options.length > 0 && <span className="text-stone-700"> ({optionsLabel(i.options)})</span>}
                         {i.notes && <span className="text-stone-500"> · {i.notes}</span>}
                       </li>
                     ))}
@@ -119,15 +155,53 @@ export default async function OrdersPanel({ params }: { params: Promise<{ storeI
                       {o.changeForCents ? ` (troco para ${formatPrice(o.changeForCents)})` : ""}
                     </p>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    {nextStatuses(o.status, o.type).map((next) => (
-                      <form key={next} action={updateOrderStatus.bind(null, storeId, o.id, next)}>
-                        <button className={next === "CANCELED" ? dangerButtonClass : buttonClass}>
-                          {o.status === "PENDING" && next === "CANCELED" ? "Recusar" : STATUS_ACTION_LABEL[next]}
-                        </button>
+                  {estimatedReadyAt(o) && (
+                    <p className="text-sm text-stone-600">Previsão informada ao cliente: {time(estimatedReadyAt(o)!)}</p>
+                  )}
+                  <div className="flex flex-wrap items-center gap-2">
+                    {o.status === "PENDING" ? (
+                      <form action={acceptOrder.bind(null, storeId, o.id)} className="flex items-center gap-2">
+                        <select name="minutes" defaultValue={30} aria-label="Tempo estimado" className={`${inputClass} w-auto`}>
+                          {ESTIMATE_OPTIONS.map((m) => (
+                            <option key={m} value={m}>
+                              {m} min
+                            </option>
+                          ))}
+                        </select>
+                        <button className={buttonClass}>Aceitar pedido</button>
                       </form>
-                    ))}
+                    ) : (
+                      nextStatuses(o.status, o.type)
+                        .filter((next) => next !== "CANCELED")
+                        .map((next) => (
+                          <form key={next} action={updateOrderStatus.bind(null, storeId, o.id, next)}>
+                            <button className={buttonClass}>{STATUS_ACTION_LABEL[next]}</button>
+                          </form>
+                        ))
+                    )}
+                    <a
+                      href={`/painel/${storeId}/pedidos/${o.id}/imprimir`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={secondaryButtonClass}
+                    >
+                      Imprimir
+                    </a>
                   </div>
+                  <details>
+                    <summary className="cursor-pointer text-sm text-red-700">
+                      {o.status === "PENDING" ? "Recusar pedido" : "Cancelar pedido"}
+                    </summary>
+                    <form action={cancelOrder.bind(null, storeId, o.id)} className="mt-2 flex flex-wrap items-center gap-2">
+                      <select name="reason" aria-label="Motivo" className={`${inputClass} w-auto`}>
+                        {CANCEL_REASONS.map((r) => (
+                          <option key={r}>{r}</option>
+                        ))}
+                      </select>
+                      <input name="other" maxLength={200} placeholder="Outro motivo (opcional)" className={`${inputClass} w-auto flex-1`} />
+                      <button className={dangerButtonClass}>Confirmar</button>
+                    </form>
+                  </details>
                 </li>
               ))}
             </ul>
@@ -147,7 +221,8 @@ export default async function OrdersPanel({ params }: { params: Promise<{ storeI
                   #{o.number} · {o.customerName} · {time(o.createdAt)}
                 </span>
                 <span className={o.status === "CANCELED" ? "text-red-600" : "text-green-700"}>
-                  {ORDER_STATUS_LABEL[o.status]} · {formatPrice(o.totalCents)}
+                  {ORDER_STATUS_LABEL[o.status]}
+                  {o.cancelReason && ` (${o.cancelReason})`} · {formatPrice(o.totalCents)}
                 </span>
               </li>
             ))}

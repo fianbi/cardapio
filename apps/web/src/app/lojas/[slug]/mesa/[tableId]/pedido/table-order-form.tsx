@@ -56,7 +56,7 @@ export function TableOrderForm({
       const result = await placeTableOrder(slug, tableId, {
         customerName: name,
         notes,
-        items: cart.items.map((i) => ({ productId: i.productId, quantity: i.quantity, notes: i.notes })),
+        items: cart.items.map((i) => ({ productId: i.productId, quantity: i.quantity, notes: i.notes, optionIds: i.optionIds })),
       });
       if (result.ok) {
         try {
@@ -73,14 +73,17 @@ export function TableOrderForm({
       <section className="rounded-lg border border-stone-200 bg-white">
         <ul className="divide-y divide-stone-200">
           {cart.items.map((item) => (
-            <li key={item.productId} className="space-y-2 p-4">
+            <li key={item.key} className="space-y-2 p-4">
               <div className="flex items-center justify-between gap-4">
-                <p className="font-medium">{item.name}</p>
+                <div>
+                  <p className="font-medium">{item.name}</p>
+                  {item.optionsLabel && <p className="text-sm text-stone-600">{item.optionsLabel}</p>}
+                </div>
                 <div className="flex items-center gap-3">
                   <QuantityControl
                     quantity={item.quantity}
                     label={item.name}
-                    onChange={(q) => cart.setQuantity(item.productId, q)}
+                    onChange={(q) => cart.setQuantity(item.key, q)}
                   />
                   <span className="w-20 text-right font-semibold">{formatPrice(item.priceCents * item.quantity)}</span>
                 </div>
@@ -89,7 +92,7 @@ export function TableOrderForm({
                 type="text"
                 placeholder="Observação (ex.: sem cebola)"
                 defaultValue={item.notes}
-                onBlur={(e) => cart.setNotes(item.productId, e.target.value)}
+                onBlur={(e) => cart.setNotes(item.key, e.target.value)}
                 maxLength={200}
                 className={inputClass}
               />

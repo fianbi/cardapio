@@ -11,3 +11,23 @@
 body {
   @apply bg-stone-50 text-stone-900 antialiased;
 }
+
+/* Cupom do pedido (/painel/.../imprimir): esconde o cabeçalho do site e o menu do painel. */
+body:has(.ticket) > header,
+body:has(.ticket) .panel-head,
+body:has(.ticket) nav {
+  display: none;
+}
+
+@media print {
+  body:has(.ticket) {
+    background: white;
+  }
+  body:has(.ticket) main {
+    padding: 0;
+    margin: 0;
+  }
+  @page {
+    margin: 4mm;
+  }
+}

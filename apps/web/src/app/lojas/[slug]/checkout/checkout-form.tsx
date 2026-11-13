@@ -15,6 +15,7 @@ type Props = {
   store: {
     slug: string;
     isOpen: boolean;
+    isPaused: boolean;
     acceptsDelivery: boolean;
     acceptsPickup: boolean;
     acceptsDineIn: boolean;
@@ -22,11 +23,12 @@ type Props = {
     minOrderCents: number;
   };
   defaults: { name: string; phone: string };
+  addresses: { id: string; label: string; text: string }[];
 };
 
 const input = "w-full rounded-md border border-stone-300 bg-white px-3 py-2";
 
-export function CheckoutForm({ store, defaults }: Props) {
+export function CheckoutForm({ store, defaults, addresses }: Props) {
   const router = useRouter();
   const cart = useCart(store.slug);
   const [pending, startTransition] = useTransition();
@@ -40,6 +42,7 @@ export function CheckoutForm({ store, defaults }: Props) {
   );
   const [type, setType] = useState<OrderType>(types[0] ?? "PICKUP");
   const [payment, setPayment] = useState<PaymentMethod>("PIX");
+  const [address, setAddress] = useState(addresses[0]?.text ?? "");
 
   if (!cart.loaded) return null;
 
@@ -70,7 +73,7 @@ export function CheckoutForm({ store, defaults }: Props) {
         deliveryAddress: String(form.get("address") ?? ""),
         notes: String(form.get("notes") ?? ""),
         changeFor: String(form.get("changeFor") ?? ""),
-        items: cart.items.map((i) => ({ productId: i.productId, quantity: i.quantity, notes: i.notes })),
+        items: cart.items.map((i) => ({ productId: i.productId, quantity: i.quantity, notes: i.notes, optionIds: i.optionIds })),
       });
       if (result.ok) {
         cart.clear();
@@ -87,17 +90,18 @@ export function CheckoutForm({ store, defaults }: Props) {
         <h2 className="border-b border-stone-200 px-4 py-3 font-semibold">Seu pedido</h2>
         <ul className="divide-y divide-stone-200">
           {cart.items.map((item) => (
-            <li key={item.productId} className="space-y-2 p-4">
+            <li key={item.key} className="space-y-2 p-4">
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <p className="font-medium">{item.name}</p>
+                  {item.optionsLabel && <p className="text-sm text-stone-600">{item.optionsLabel}</p>}
                   <p className="text-sm text-stone-500">{formatPrice(item.priceCents)} cada</p>
                 </div>
                 <div className="flex items-center gap-3">
                   <QuantityControl
                     quantity={item.quantity}
                     label={item.name}
-                    onChange={(q) => cart.setQuantity(item.productId, q)}
+                    onChange={(q) => cart.setQuantity(item.key, q)}
                   />
                   <span className="w-20 text-right font-semibold">{formatPrice(item.priceCents * item.quantity)}</span>
                 </div>
@@ -106,7 +110,7 @@ export function CheckoutForm({ store, defaults }: Props) {
                 type="text"
                 placeholder="Observação (ex.: sem cebola)"
                 defaultValue={item.notes}
-                onBlur={(e) => cart.setNotes(item.productId, e.target.value)}
+                onBlur={(e) => cart.setNotes(item.key, e.target.value)}
                 maxLength={200}
                 className={`${input} text-sm`}
               />
@@ -130,10 +134,34 @@ export function CheckoutForm({ store, defaults }: Props) {
           ))}
         </div>
         {type === "DELIVERY" && (
-          <label className="block text-sm">
-            Endereço de entrega
-            <textarea name="address" required rows={2} placeholder="Rua, número, bairro, complemento" className={`${input} mt-1`} />
-          </label>
+          <div className="space-y-2">
+            {addresses.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {addresses.map((a) => (
+                  <button
+                    key={a.id}
+                    type="button"
+                    onClick={() => setAddress(a.text)}
+                    className={`rounded-full border px-3 py-1 text-xs ${address === a.text ? "border-brand-600 bg-brand-50 font-medium" : "border-stone-300"}`}
+                  >
+                    {a.label}
+                  </button>
+                ))}
+              </div>
+            )}
+            <label className="block text-sm">
+              Endereço de entrega
+              <textarea
+                name="address"
+                required
+                rows={2}
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="Rua, número, bairro, complemento"
+                className={`${input} mt-1`}
+              />
+            </label>
+          </div>
         )}
       </section>
 
@@ -205,6 +233,9 @@ export function CheckoutForm({ store, defaults }: Props) {
         <p className="text-sm text-amber-700">O pedido mínimo desta loja é {formatPrice(store.minOrderCents)}.</p>
       )}
       {!store.isOpen && <p className="text-sm text-red-600">A loja está fechada no momento.</p>}
+      {store.isOpen && store.isPaused && (
+        <p className="text-sm text-red-600">A loja pausou os pedidos por alguns minutos. Tente daqui a pouco.</p>
+      )}
       {error && (
         <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}
@@ -212,7 +243,7 @@ export function CheckoutForm({ store, defaults }: Props) {
       )}
 
       <button
-        disabled={pending || !store.isOpen || belowMinimum}
+        disabled={pending || !store.isOpen || store.isPaused || belowMinimum}
         className="w-full rounded-md bg-brand-600 px-4 py-3 font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {pending ? "Enviando pedido..." : `Fazer pedido · ${formatPrice(total)}`}

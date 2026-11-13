@@ -4,6 +4,7 @@ import { prisma } from "@cardapio/db";
 import { auth } from "@/auth";
 import { isOpenNow } from "@/lib/hours";
 import { buildOrderItems, createOrder, type CartLine } from "@/lib/server/orders";
+import { isPublicStore } from "@/lib/server/stores";
 import { openTab } from "@/lib/server/tabs";
 
 export type TableOrderResult = { ok: true } | { ok: false; error: string };
@@ -21,7 +22,7 @@ export async function placeTableOrder(
     where: { id: tableId },
     include: { store: { include: { openingHours: true } } },
   });
-  if (!table || !table.isActive || table.store.slug !== slug || !table.store.isActive) {
+  if (!table || !table.isActive || table.store.slug !== slug || !isPublicStore(table.store)) {
     return { ok: false, error: "Mesa não encontrada. Leia o QR code de novo." };
   }
   if (!isOpenNow(table.store.openingHours)) return { ok: false, error: "A loja está fechada no momento." };

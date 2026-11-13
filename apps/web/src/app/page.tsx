@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma, type Prisma } from "@cardapio/db";
 import { isOpenNow, todayLabel } from "@/lib/hours";
+import { PUBLIC_STORE } from "@/lib/server/stores";
 import { OpenBadge } from "@/components/open-badge";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +12,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
   const { q = "", tipo = "", aberto } = await searchParams;
   const onlyOpen = aberto === "1";
 
-  const where: Prisma.StoreWhereInput = { isActive: true };
+  const where: Prisma.StoreWhereInput = { ...PUBLIC_STORE };
   if (q.trim()) {
     const term = q.trim();
     where.OR = [
@@ -36,7 +37,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
         openingHours: { select: { weekday: true, opensAt: true, closesAt: true } },
       },
     }),
-    prisma.store.findMany({ where: { isActive: true }, select: { cuisines: true } }),
+    prisma.store.findMany({ where: PUBLIC_STORE, select: { cuisines: true } }),
   ]);
 
   const cuisines = [...new Set(allCuisines.flatMap((s) => s.cuisines))].sort((a, b) => a.localeCompare(b, "pt-BR"));

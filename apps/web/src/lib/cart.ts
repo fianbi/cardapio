@@ -4,12 +4,22 @@ import { useCallback, useEffect, useState } from "react";
 
 // Carrinho guardado no navegador, um por loja.
 export type CartItem = {
+  /** Identifica a linha do carrinho: mesmo produto com opções diferentes vira outra linha. */
+  key: string;
   productId: string;
   name: string;
+  /** Preço unitário já com as opções escolhidas. */
   priceCents: number;
   quantity: number;
   notes?: string;
+  optionIds?: string[];
+  /** Texto das opções para mostrar no carrinho, ex.: "Ao ponto, Bacon". */
+  optionsLabel?: string;
 };
+
+export function cartKey(productId: string, optionIds: string[] = []) {
+  return optionIds.length ? `${productId}:${[...optionIds].sort().join(",")}` : productId;
+}
 
 const key = (storeSlug: string) => `cardapio:cart:${storeSlug}`;
 const EVENT = "cardapio:cart-change";
@@ -17,7 +27,9 @@ const EVENT = "cardapio:cart-change";
 function read(storeSlug: string): CartItem[] {
   try {
     const raw = window.localStorage.getItem(key(storeSlug));
-    return raw ? (JSON.parse(raw) as CartItem[]) : [];
+    const items = raw ? (JSON.parse(raw) as CartItem[]) : [];
+    // Carrinhos salvos antes das opções não tinham `key`.
+    return items.map((i) => ({ ...i, key: i.key ?? cartKey(i.productId, i.optionIds) }));
   } catch {
     return [];
   }
@@ -59,24 +71,25 @@ export function useCart(storeSlug: string) {
   );
 
   const add = useCallback(
-    (item: Omit<CartItem, "quantity">) =>
+    (item: Omit<CartItem, "quantity" | "key">, quantity = 1) =>
       update((current) => {
-        const found = current.find((i) => i.productId === item.productId);
-        if (found) return current.map((i) => (i === found ? { ...i, quantity: i.quantity + 1 } : i));
-        return [...current, { ...item, quantity: 1 }];
+        const key = cartKey(item.productId, item.optionIds);
+        const found = current.find((i) => i.key === key);
+        if (found) return current.map((i) => (i === found ? { ...i, quantity: i.quantity + quantity } : i));
+        return [...current, { ...item, key, quantity }];
       }),
     [update],
   );
 
   const setQuantity = useCallback(
-    (productId: string, quantity: number) =>
-      update((current) => current.map((i) => (i.productId === productId ? { ...i, quantity } : i))),
+    (key: string, quantity: number) =>
+      update((current) => current.map((i) => (i.key === key ? { ...i, quantity } : i))),
     [update],
   );
 
   const setNotes = useCallback(
-    (productId: string, notes: string) =>
-      update((current) => current.map((i) => (i.productId === productId ? { ...i, notes } : i))),
+    (key: string, notes: string) =>
+      update((current) => current.map((i) => (i.key === key ? { ...i, notes } : i))),
     [update],
   );
 

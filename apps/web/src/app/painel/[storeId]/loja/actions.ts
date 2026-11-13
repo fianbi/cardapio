@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@cardapio/db";
 import { requireStoreOwner } from "@/lib/store-auth";
 import { parsePriceToCents } from "@/lib/format";
+import { formImage, saveImage } from "@/lib/server/uploads";
 
 export type FormState = { error?: string; ok?: boolean; at?: number } | undefined;
 
@@ -98,4 +99,18 @@ export async function setPublished(storeId: string, publish: boolean): Promise<F
   revalidatePath("/");
   revalidatePath(`/lojas/${store.slug}`);
   return { ok: true, at: Date.now() };
+}
+
+/** Envia (ou remove) a logo da loja, mostrada na lista do aplicativo. */
+export async function saveLogo(storeId: string, form: FormData) {
+  await requireStoreOwner(storeId);
+  const image = formImage(form, "logo");
+  if (image) {
+    const upload = await saveImage(image, `lojas/${storeId}`);
+    if (!upload.ok) return;
+    await prisma.store.update({ where: { id: storeId }, data: { logoUrl: upload.url } });
+  } else if (form.get("remove") === "on") {
+    await prisma.store.update({ where: { id: storeId }, data: { logoUrl: null } });
+  }
+  revalidatePath(`/painel/${storeId}/loja`);
 }

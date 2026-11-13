@@ -63,16 +63,17 @@ export function ProductForm({ storeId, categories, defaultCategoryId, product }:
           className={`${inputClass} mt-1`}
         />
       </label>
-      <label className="block text-sm sm:col-span-2">
-        Link da foto (opcional)
-        <input
-          name="imageUrl"
-          type="url"
-          defaultValue={product?.imageUrl ?? ""}
-          placeholder="https://..."
-          className={`${inputClass} mt-1`}
-        />
-      </label>
+      <div className="space-y-1 text-sm sm:col-span-2">
+        <label className="block">
+          Foto (opcional, JPG/PNG/WebP até 4 MB)
+          <input name="image" type="file" accept="image/jpeg,image/png,image/webp" className={`${inputClass} mt-1`} />
+        </label>
+        {product?.imageUrl && (
+          <label className="flex items-center gap-2 text-stone-600">
+            <input type="checkbox" name="removeImage" /> Remover a foto atual
+          </label>
+        )}
+      </div>
       <div className="flex items-center gap-3 sm:col-span-2">
         <button disabled={pending} className={buttonClass}>
           {pending ? "Salvando..." : product ? "Salvar alterações" : "Adicionar produto"}

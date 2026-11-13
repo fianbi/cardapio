@@ -5,6 +5,8 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   transpilePackages: ["@cardapio/db"],
   serverExternalPackages: ["@prisma/client"],
+  // Fotos de produto são enviadas por server action (limite padrão é 1 MB).
+  experimental: { serverActions: { bodySizeLimit: "5mb" } },
 };
 
 export default nextConfig;

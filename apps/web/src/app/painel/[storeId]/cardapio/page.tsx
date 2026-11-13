@@ -15,6 +15,7 @@ import {
   renameCategory,
   toggleProductAvailability,
 } from "./actions";
+import { OptionGroups } from "./option-groups";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +32,10 @@ export default async function MenuPanel({ params }: { params: Promise<{ storeId:
       include: {
         products: {
           orderBy: { position: "asc" },
-          include: { recipe: { include: { ingredient: { select: { name: true, available: true } } } } },
+          include: {
+            recipe: { include: { ingredient: { select: { name: true, available: true } } } },
+            optionGroups: { orderBy: { position: "asc" }, include: { options: { orderBy: { position: "asc" } } } },
+          },
         },
       },
     }),
@@ -124,9 +128,11 @@ export default async function MenuPanel({ params }: { params: Promise<{ storeId:
                   </div>
                   <details className="mt-2">
                     <summary className="cursor-pointer text-sm text-brand-700">
-                      Editar{p.recipe.length > 0 ? ` · ingredientes (${p.recipe.length})` : ""}
+                      Editar{p.optionGroups.length > 0 ? ` · adicionais (${p.optionGroups.length})` : ""}
+                      {p.recipe.length > 0 ? ` · ingredientes (${p.recipe.length})` : ""}
                     </summary>
                     <div className="mt-3 space-y-3">
+                      <OptionGroups storeId={storeId} productId={p.id} groups={p.optionGroups} />
                       <div className="space-y-2 rounded-md bg-stone-50 p-3">
                         <p className="text-sm font-medium">Ingredientes</p>
                         {p.recipe.length > 0 && (
